@@ -2,6 +2,20 @@
     "configurations": [
         {
             "type": "java",
+            "name": "MsGatewayApplication",
+            "request": "launch",
+            "mainClass": "com.streaming.ms_gateway.MsGatewayApplication",
+            "projectName": ""
+        },
+        {
+            "type": "java",
+            "name": "EurekaApplication",
+            "request": "launch",
+            "mainClass": "com.streaming.eureka.EurekaApplication",
+            "projectName": ""
+        },
+        {
+            "type": "java",
             "name": "Spring Boot-MsUserApplication<ms-user>",
             "request": "launch",
             "cwd": "${workspaceFolder}",
