@@ -22,24 +22,19 @@ import com.music.ms_user.utils.constants.Role;
 import com.music.ms_user.utils.constants.Status;
 
 import jakarta.transaction.Transactional;
+import lombok.AllArgsConstructor;
 
 @Service
+@AllArgsConstructor
 public class AuthService {
     
-    @Autowired
-    private UserRepository userRepository;
-    @Autowired 
-    private UserRoleRepository UserRoleRepository;
-    @Autowired
-    private UserSettingRepository userSettingRepository;
-    @Autowired
-    private AuthenticationManager authenticationManager;
-    @Autowired
-    private UserDetailsServiceImpl userDetailsServiceImpl;
-    @Autowired
-    private JwtService jwtService;
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    private final UserRoleRepository userRoleRepository;
+    private final UserSettingRepository userSettingRepository;
+    private final AuthenticationManager authenticationManager;
+    private final UserDetailsServiceImpl userDetailsServiceImpl;
+    private final JwtService jwtService;
+    private final PasswordEncoder passwordEncoder;
 
     @Transactional
     public LoginDtoRes login (LoginDtoReq loginDtoReq) {
@@ -72,7 +67,7 @@ public class AuthService {
             UserRole role = new UserRole();
             role.setUserId(user.getUserId());
             role.setRole(Role.USER);
-            this.UserRoleRepository.save(role);
+            this.userRoleRepository.save(role);
 
             UserSetting userSetting = new UserSetting();
             userSetting.setUserId(user.getUserId());

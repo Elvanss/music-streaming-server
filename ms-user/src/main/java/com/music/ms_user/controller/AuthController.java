@@ -3,7 +3,6 @@ package com.music.ms_user.controller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +13,6 @@ import com.music.ms_user.domain.dto.res.LoginDtoRes;
 import com.music.ms_user.domain.dto.res.UserDtoRes;
 import com.music.ms_user.domain.entity.User;
 import com.music.ms_user.mapper.UserMapper;
-import com.music.ms_user.security.JwtRequestFilter;
 import com.music.ms_user.service.AuthService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +25,7 @@ public class AuthController {
     private final AuthService authService;
     private final UserMapper userMapper;
 
-    private static final Logger logger = LoggerFactory.getLogger(JwtRequestFilter.class);
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
     public AuthController (AuthService authService, UserMapper userMapper) {
         this.authService = authService;
@@ -35,7 +33,6 @@ public class AuthController {
     }
 
     @PostMapping("/v1/login")
-    @PreAuthorize("permitAll()")
     public ResponseEntity<LoginDtoRes> login(@RequestBody LoginDtoReq loginRequest) {
         logger.info(
             "Login request: Email: {} and Password: {}", 

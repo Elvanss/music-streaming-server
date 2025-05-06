@@ -22,8 +22,6 @@ public class JwtService {
 
    private static final Logger LOGGER = LoggerFactory.getLogger(JwtService.class);
 
-    private final UserDetailsService userDetailsService;
-
     private final KeyPair keyPair;
 
     @Value("${spring.security.jwt.secret}")
@@ -32,8 +30,7 @@ public class JwtService {
     @Value("${spring.security.jwt.expiration}")
     private long expiration;
 
-    public JwtService(UserDetailsService userDetailsService) {
-        this.userDetailsService = userDetailsService;
+    public JwtService() {
         this.keyPair = generateKeyPair();
     }
 
@@ -63,11 +60,11 @@ public class JwtService {
                 .signWith(getPrivateKey(), SignatureAlgorithm.RS256)
                 .expiration(new Date(System.currentTimeMillis() + expiration));
 
-        // Add custom claims
-//        if (userDetails.getSemesterId() != null) {
-//            builder.claim("semesterId", userDetails.getSemesterId());
-//        }
-
+        /*  Add custom claims
+        if (userDetails.getSemesterId() != null) {
+           builder.claim("semesterId", userDetails.getSemesterId());
+        }
+        */
         return jwtBuilder.compact();
     }
 
@@ -86,10 +83,6 @@ public class JwtService {
         }
 
         try {
-            // Jws<Claims> claimsJws = Jwts.parser()
-            //         .verifyWith(getPublicKey())
-            //         .build()
-            //         .parseSignedClaims(token);
             Jwts.parser()
                 .verifyWith(getPublicKey())
                 .build()
