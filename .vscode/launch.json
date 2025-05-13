@@ -2,6 +2,13 @@
     "configurations": [
         {
             "type": "java",
+            "name": "EurekaApplication",
+            "request": "launch",
+            "mainClass": "EurekaApplication",
+            "projectName": "eureka"
+        },
+        {
+            "type": "java",
             "name": "MsGatewayApplication",
             "request": "launch",
             "mainClass": "com.streaming.ms_gateway.MsGatewayApplication",
@@ -21,6 +28,16 @@
             "cwd": "${workspaceFolder}",
             "mainClass": "com.music.ms_user.MsUserApplication",
             "projectName": "ms-user",
+            "args": "",
+            "envFile": "${workspaceFolder}/.env"
+        },
+        {
+            "type": "java",
+            "name": "Spring Boot-MsGatewayApplication<ms-gateway>",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "mainClass": "com.streaming.ms_gateway.MsGatewayApplication",
+            "projectName": "ms-gateway",
             "args": "",
             "envFile": "${workspaceFolder}/.env"
         }

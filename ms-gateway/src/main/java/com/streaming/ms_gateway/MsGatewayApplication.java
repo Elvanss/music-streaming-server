@@ -1,13 +1,13 @@
-package com.music.ms_user;
+package com.streaming.ms_gateway;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class MsUserApplication {
+public class MsGatewayApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(MsUserApplication.class, args);
+		SpringApplication.run(MsGatewayApplication.class, args);
 	}
 
 }

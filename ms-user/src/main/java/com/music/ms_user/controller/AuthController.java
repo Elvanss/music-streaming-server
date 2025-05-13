@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.music.ms_user.domain.dto.req.LoginDtoReq;
-import com.music.ms_user.domain.dto.res.LoginDtoRes;
 import com.music.ms_user.domain.dto.res.UserDtoRes;
 import com.music.ms_user.domain.entity.User;
 import com.music.ms_user.mapper.UserMapper;
@@ -32,17 +31,15 @@ public class AuthController {
         this.userMapper = userMapper;
     }
 
-    @PostMapping("/v1/login")
-    public ResponseEntity<LoginDtoRes> login(@RequestBody LoginDtoReq loginRequest) {
-        logger.info(
-            "Login request: Email: {} and Password: {}", 
-            loginRequest.getEmail(), 
-            loginRequest.getPassword()
-            );
-        return ResponseEntity.ok(this.authService.login(
-            loginRequest
-        ));
-    }
+    // @PostMapping("/v1/login")
+    // public ResponseEntity<String> login(@RequestBody LoginDtoReq loginRequest) {
+    //     logger.info(
+    //         "Login request: Email: {} and Password: {}", 
+    //         loginRequest.getEmail(), 
+    //         loginRequest.getPassword()
+    //         );
+    //     return ResponseEntity.ok(this.authService.sendOtpRequest(loginRequest));
+    // }
 
     @PostMapping("/v1/register")
     public ResponseEntity<UserDtoRes> registerUser(@RequestBody User user) {

@@ -31,7 +31,18 @@ spring:
     jwt:
       secret: xxdWXHtgXeXs0vaLSRjrORGDZvuRSoRHEOc43IyiLl6YOOjTW5U11Ae0fRA0vyeAHqOvepKwiHTkB/dLZP+ESw== # base64 secret
       expiration: 43200000 # in milliseconds (12 hours)
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
 
 frontend:
   domain:
     url: http://localhost:3000
+
+app:
+  topic:
+    otp-request: otp.requested
+
