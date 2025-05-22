@@ -1,24 +1,38 @@
 package com.music.ms_user.producer;
 
-import org.springframework.beans.factory.annotation.Value;
+import java.util.concurrent.CompletableFuture;
+
+import org.slf4j.Logger;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
 import com.music.ms_user.event.OtpRequestEvent;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Service
 public class OtpKafkaProducer {
 
+    private final Logger logger = org.slf4j.LoggerFactory.getLogger(OtpKafkaProducer.class);
     private final KafkaTemplate<String, OtpRequestEvent> kafkaTemplate;
-
-    @Value("${app.topic.otp-request}")
-    private String topic;
 
     public OtpKafkaProducer(KafkaTemplate<String, OtpRequestEvent> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 
-    public void sendOtpRequest(OtpRequestEvent event) {
-        kafkaTemplate.send(topic, event);
+    public void sendMessage(OtpRequestEvent otpRequestEvent, String topic) {
+        CompletableFuture<SendResult<String, OtpRequestEvent>> future = kafkaTemplate.send(topic, otpRequestEvent);
+        future.whenComplete((result, ex) -> {
+            if (ex == null) {
+                logger.info("Send message=[{}] with offset=[{}]", 
+                otpRequestEvent, 
+                result.getRecordMetadata().offset()
+                );
+            } else {
+                logger.error("Failed to send message=[{}] due to: {}", otpRequestEvent, ex.getMessage());
+            }
+        });
     }
 }

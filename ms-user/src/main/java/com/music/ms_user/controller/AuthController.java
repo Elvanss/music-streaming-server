@@ -2,16 +2,21 @@ package com.music.ms_user.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Description;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.music.ms_user.domain.dto.req.LoginDtoReq;
-import com.music.ms_user.domain.dto.res.UserDtoRes;
+import com.music.ms_user.api.ApiResponse;
+import com.music.ms_user.domain.dto.req.LoginDtoRequest;
+import com.music.ms_user.domain.dto.req.VerifyOtpRequest;
+import com.music.ms_user.domain.dto.res.LoginResponse;
+import com.music.ms_user.domain.dto.res.UserDtoResponse;
 import com.music.ms_user.domain.entity.User;
-import com.music.ms_user.mapper.UserMapper;
+import com.music.ms_user.event.OtpRequestEvent;
 import com.music.ms_user.service.AuthService;
 
 import lombok.extern.slf4j.Slf4j;
@@ -22,29 +27,34 @@ import lombok.extern.slf4j.Slf4j;
 public class AuthController {
 
     private final AuthService authService;
-    private final UserMapper userMapper;
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
 
-    public AuthController (AuthService authService, UserMapper userMapper) {
+    public AuthController (AuthService authService) {
         this.authService = authService;
-        this.userMapper = userMapper;
     }
 
-    // @PostMapping("/v1/login")
-    // public ResponseEntity<String> login(@RequestBody LoginDtoReq loginRequest) {
-    //     logger.info(
-    //         "Login request: Email: {} and Password: {}", 
-    //         loginRequest.getEmail(), 
-    //         loginRequest.getPassword()
-    //         );
-    //     return ResponseEntity.ok(this.authService.sendOtpRequest(loginRequest));
-    // }
+    @RequestMapping(value = "/v1/register", method = RequestMethod.POST)
+    @Description("Register a new user with given details.")
+    public ResponseEntity<ApiResponse<UserDtoResponse>> registerUser(@RequestBody @Valid User user) {
+        logger.info("Registering user with email: {}", user.getEmail());
+        ApiResponse<UserDtoResponse> response = authService.registerUser(user);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
 
-    @PostMapping("/v1/register")
-    public ResponseEntity<UserDtoRes> registerUser(@RequestBody User user) {
-        User obj = this.authService.register(user);
-        UserDtoRes userDto = this.userMapper.toUserDto(obj);
-        return ResponseEntity.ok(userDto);
+    @RequestMapping(value = "/v1/login", method = RequestMethod.POST)
+    @Description("Send the user email and password.")
+    public ResponseEntity<ApiResponse<OtpRequestEvent>> login(@RequestBody @Valid LoginDtoRequest loginDtoReq) {
+        logger.info("Processing login request for email: {}", loginDtoReq.getEmail());
+        ApiResponse<OtpRequestEvent> response = authService.userLogin(loginDtoReq);
+        return ResponseEntity.ok(response);
+    }
+
+    @RequestMapping(value = "/v1/verify-otp", method = RequestMethod.POST)
+    @Description("Verify the OTP code sent to the user.")
+    public ResponseEntity<ApiResponse<LoginResponse>> verifyOtp(@RequestBody @Valid VerifyOtpRequest otpRequest) {
+        logger.info("Processing OTP verification for email: {}", otpRequest.getEmail());
+        ApiResponse<LoginResponse> response = authService.verifyOtp(otpRequest);
+        return ResponseEntity.ok(response);
     }
 }

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 import com.streaming.ms_gateway.filter.JwtAuthenticationFilter;
 
-@Configuration
+// @Configuration
 public class GatewayConfig {
     private final JwtAuthenticationFilter filter;
 

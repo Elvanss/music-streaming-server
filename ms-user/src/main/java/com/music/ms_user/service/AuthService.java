@@ -1,16 +1,31 @@
 package com.music.ms_user.service;
 
+import java.time.Instant;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Description;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
-import com.music.ms_user.domain.dto.req.LoginDtoReq;
-import com.music.ms_user.domain.dto.res.LoginDtoRes;
+import com.music.ms_user.api.ApiResponse;
+import com.music.ms_user.client.OtpServiceClient;
+import com.music.ms_user.config.KafkaTopicsConfig;
+import com.music.ms_user.domain.dto.req.LoginDtoRequest;
+import com.music.ms_user.domain.dto.req.VerifyOtpRequest;
+import com.music.ms_user.domain.dto.res.LoginResponse;
+import com.music.ms_user.domain.dto.res.UserDtoResponse;
 import com.music.ms_user.domain.entity.User;
 import com.music.ms_user.domain.entity.UserRole;
 import com.music.ms_user.domain.entity.UserSetting;
 import com.music.ms_user.event.OtpRequestEvent;
 import com.music.ms_user.exception.InvalidInputException;
+import com.music.ms_user.mapper.UserMapper;
 import com.music.ms_user.producer.OtpKafkaProducer;
 import com.music.ms_user.repository.UserRepository;
 import com.music.ms_user.repository.UserRoleRepository;
@@ -22,11 +37,14 @@ import com.music.ms_user.utils.constants.Status;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @AllArgsConstructor
 public class AuthService {
-    
+
+    private final Logger logger = LoggerFactory.getLogger(AuthService.class);
     private final UserRepository userRepository;
     private final UserRoleRepository userRoleRepository;
     private final UserSettingRepository userSettingRepository;
@@ -34,43 +52,97 @@ public class AuthService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final OtpKafkaProducer otpKafkaProducer;
+    private final AuthenticationManager authenticationManager;
+    private final UserMapper userMapper;
+    private final RestTemplate restTemplate;
+    private final KafkaTopicsConfig kafkaTopicsConfig;
+    private final OtpServiceClient otpServiceClient;
 
     @Transactional
-    public String sendOtpRequest(LoginDtoReq loginDtoReq) {
-        // Create an OTP request event
-        OtpRequestEvent event = new OtpRequestEvent(loginDtoReq.getEmail(), loginDtoReq.getPassword());
-
-        // Send the OTP request event to Kafka
-        otpKafkaProducer.sendOtpRequest(event);
-
-        // Return a success message
-        return "OTP request sent!";
-    }
+    public ApiResponse<OtpRequestEvent> userLogin(LoginDtoRequest loginDtoReq) {
+        User authenticatedUser = authenticate(loginDtoReq);
     
-    @Transactional
-    public LoginDtoRes verifyOtp(String email, Integer otpNumber) {
-        // Validate the OTP (this assumes you have a method to verify the OTP)
-        boolean isOtpValid = validateOtp(otpNumber);
-        if (!isOtpValid) {
-            throw new InvalidInputException("Invalid OTP provided.");
+        if (authenticatedUser == null) {
+            return new ApiResponse<>(false, "No Account found!", null);
         }
     
-        // Load user details after OTP verification
-        UserDetailsImpl userDetails = (UserDetailsImpl) userDetailsServiceImpl.loadUserByUsername(email);
-
-        // Generate a JWT token for the user
-        String token = jwtService.generateToken(userDetails);
-
-        // Return the token and email
-        return new LoginDtoRes(token, userDetails.getUsername());
-    }
+         if (authenticatedUser.isLocked()) {
+            logger.warn("Account is locked for user with email: {}", authenticatedUser.getEmail());
+        
+            OtpRequestEvent accountLockedEvent = buildOtpRequestEvent(authenticatedUser);
+        
+            try {
+                otpKafkaProducer.sendMessage(accountLockedEvent, kafkaTopicsConfig.getProducedTopic("user.account.locked").getName());
+                logger.info("Account locked event sent to Kafka for user: {}", authenticatedUser.getEmail());
+            } catch (Exception e) {
+                logger.error("Failed to send account locked event to Kafka for user: {}", authenticatedUser.getEmail(), e);
+                return new ApiResponse<>(false, "Failed to process account-locked event", null);
+            }
+        
+            return new ApiResponse<>(false, "This account is locked!", accountLockedEvent);
+        }
     
-    private boolean validateOtp(Integer otpNumber) {
-        return otpNumber != null && otpNumber.equals(123456); 
+        if (!passwordEncoder.matches(loginDtoReq.getPassword(), authenticatedUser.getPassword())) {
+            if (handleFailedAttempts(authenticatedUser)) {
+                return new ApiResponse<>(false, "Account is locked", null);
+            }
+            return new ApiResponse<>(false, "You entered the wrong password or email!", null);
+        }
+    
+        logger.info("Quick check user with account id: {} and user name {}", 
+                authenticatedUser.getUserId(), 
+                authenticatedUser.getEmail()
+        );
+    
+        OtpRequestEvent otpRequestEvent = buildOtpRequestEvent(authenticatedUser);
+        otpKafkaProducer.sendMessage(otpRequestEvent, kafkaTopicsConfig.getProducedTopic("user.otp.requested").getName());
+    
+        return new ApiResponse<>(true, "User credentials returned!", otpRequestEvent);
     }
 
     @Transactional
-    public User register (User user) {
+    public ApiResponse<LoginResponse> verifyOtp(VerifyOtpRequest otpRequest) {
+        try {
+            // Log the request
+            logger.info("Verifying OTP for email: {} with OTP: {}", otpRequest.getEmail(), otpRequest.getOtp());
+    
+            // Call the OTP verification service using Feign client
+            boolean otpVerificationResponse = otpServiceClient.verifyOtp(otpRequest.getEmail(), otpRequest.getOtp());
+            logger.info("Response from OTP verification service: {}", otpVerificationResponse);
+    
+            // Validate the response (if needed)
+            if (!otpVerificationResponse) {
+                logger.warn("Invalid OTP for user with email: {}", otpRequest.getEmail());
+                return new ApiResponse<>(false, "Invalid OTP", null);
+            }
+    
+            // Load user details
+            UserDetailsImpl userDetails = (UserDetailsImpl) userDetailsServiceImpl.loadUserByUsername(otpRequest.getEmail());
+    
+            // Generate JWT token for the user
+            String token = jwtService.generateToken(userDetails);
+            LoginResponse loginResponse = new LoginResponse();
+            loginResponse.setToken(token);
+            logger.info("Generated login response: {}", loginResponse);
+    
+            // Delete the OTP after successful verification
+            otpServiceClient.deleteOtp(otpRequest.getEmail());
+            logger.info("Deleted OTP for user with email: {}", otpRequest.getEmail());
+    
+            // Return success response
+            return new ApiResponse<>(true, "OTP verified successfully", loginResponse);
+    
+        } catch (InvalidInputException e) {
+            logger.error("User not found with email: {}", otpRequest.getEmail(), e);
+            return new ApiResponse<>(false, e.getMessage(), null);
+        } catch (UsernameNotFoundException | RestClientException e) {
+            logger.error("An error occurred during OTP verification for user with email: {}", otpRequest.getEmail(), e);
+            return new ApiResponse<>(false, "An unexpected error occurred", null);
+        }
+    }
+    @Transactional
+    @Description("Register a new user with given details.")
+    public ApiResponse<UserDtoResponse> registerUser(User user) {
         try {
             if (userRepository.findByEmail(user.getEmail()).isPresent()) {
                 throw new InvalidInputException("The email address is already in use.");
@@ -88,9 +160,57 @@ public class AuthService {
             userSetting.setLanguage("VN");
             userSetting.setStatus(Status.PENDING_VERIFICATION);
             this.userSettingRepository.save(userSetting);
-            return user;
+            return new ApiResponse<>(true, "User registered successfully", this.userMapper.toUserDto(user));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /*
+     * External functions for main service methods
+     * Start from here [^.^]
+     */
+    public User authenticate (LoginDtoRequest loginDtoReq) {
+        authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                loginDtoReq.getEmail(),
+                loginDtoReq.getPassword()
+        ));
+        return 
+                this.userRepository.findByEmail
+                    (
+                        loginDtoReq.getEmail()
+                    )
+                .orElseThrow
+                    (
+                        () -> new InvalidInputException("User not found")
+                    );
+                
+    }
+
+    private OtpRequestEvent buildOtpRequestEvent(User user) {
+        return OtpRequestEvent.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .timestamp(Instant.now())
+                .build();
+    }
+
+    private boolean handleFailedAttempts(User user) {
+        Integer failedAttempted = user.getAttemptedCount() + 1;
+        user.setAttemptedCount(failedAttempted);
+    
+        if (failedAttempted >= 5) {
+            user.setLocked(true);
+            userRepository.save(user);
+    
+            // Build and send account locked event
+            OtpRequestEvent accountLockedEvent = buildOtpRequestEvent(user);
+            otpKafkaProducer.sendMessage(accountLockedEvent, "account-locked-events");
+    
+            return true; // Account is locked
+        }
+    
+        userRepository.save(user); // Save the updated attempt count
+        return false; // Account is not locked
     }
 }

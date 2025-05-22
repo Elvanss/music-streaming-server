@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 
-@Component
+// @Component
 public class JwtUtils {
 
     @Value("${spring.security.jwt.public-key}")

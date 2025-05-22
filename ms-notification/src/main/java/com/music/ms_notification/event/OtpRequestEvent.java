@@ -1,7 +1,6 @@
-package com.music.ms_user.event;
+package com.music.ms_notification.event;
 
 import java.time.Instant;
-import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,13 +14,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OtpRequestEvent {
-    private UUID userId;
+    private String userId;
     private String email;
     private Instant timestamp;
-
-    public OtpRequestEvent(UUID userId, String email) {
-        this.userId = userId;
-        this.email = email;
-    }
 }
-

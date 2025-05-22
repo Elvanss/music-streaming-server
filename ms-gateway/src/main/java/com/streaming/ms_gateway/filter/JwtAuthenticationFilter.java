@@ -15,7 +15,7 @@ import com.streaming.ms_gateway.util.JwtUtils;
 
 import reactor.core.publisher.Mono;
 
-@Component
+// @Component
 public class JwtAuthenticationFilter implements GatewayFilter {
     private final JwtUtils jwtUtils;
 

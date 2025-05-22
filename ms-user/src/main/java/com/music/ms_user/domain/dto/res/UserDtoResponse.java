@@ -11,9 +11,11 @@ import lombok.Setter;
 @NoArgsConstructor
 @Setter
 @Getter
-public class UserDtoRes {
+public class UserDtoResponse {
     private String name;
     private String email;
     private Date dateOfBirth;
     private byte[] profileImage;
+    private boolean locked;
+    private Integer attemptedCount;
 }

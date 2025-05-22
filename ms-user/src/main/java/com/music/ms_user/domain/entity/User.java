@@ -44,4 +44,10 @@ public class User implements Serializable{
 
     @Column(name = "profile_image", columnDefinition = "BYTEA")
     private byte[] profileImage;
+
+    @Column(name = "account_locked")
+    private boolean locked;
+
+    @Column(name = "attempted_count")
+    private Integer attemptedCount = 0;
 }
